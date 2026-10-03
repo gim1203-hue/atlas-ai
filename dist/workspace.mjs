@@ -24,6 +24,7 @@ export function restoreWorkspace(raw, validateNotes, defaults) {
   for (const chat of state.chats) {
     if (!chat || typeof chat.id !== 'string' || ids.has(chat.id) || typeof chat.title !== 'string' || chat.title.length > 100 || !Array.isArray(chat.messages) || chat.messages.length > 80) throw Error('Invalid saved conversation.');
     ids.add(chat.id);
+    if (typeof chat.draft !== 'string' || chat.draft.length > 3000) delete chat.draft;
     for (const message of chat.messages) {
       if (!['user','assistant'].includes(message.role) || typeof message.content !== 'string' || message.content.length > 100000) throw Error('Invalid saved message.');
       // Saved metadata is never trusted as a link or model instruction.

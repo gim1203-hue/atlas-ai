@@ -14,13 +14,23 @@ npm start
 
 Open the URL printed in the terminal. Keep the server running. You can also host the complete `dist` folder on an HTTPS static host. Opening `index.html` as a file will not work. This repository update does not deploy a public website.
 
+Type a question and choose **Start AI & send** to load the selected local model and send your question when it is ready. You can also load it first with **Start free AI**. Empty questions keep Send disabled. If loading fails or you cancel the download, your draft stays in the composer so you can retry. Chat scrolling follows new output unless you scroll up to read earlier messages.
+
+Drafts save separately for each conversation and restore when you return. Pending edits are submitted to browser storage when you leave the page or switch tabs. Stop terminates the AI worker so even a stuck request releases the controls; your next question restarts the model using its cache where available. Idle worker crashes also return the AI to a restartable state. Streamed answers refresh at most about every 75 milliseconds, and file-size checks reuse cached sizes for unchanged files.
+
 ## Work with files
 
-1. Choose **Open files** or **Open folder** in Project files, or enter a relative filename and click **Create file**.
+1. Choose **Add files** or **Add folder** in Project files, or enter a relative filename and click **Create file**. **Add folder** beside the chat composer imports into the same project workspace.
 2. Select up to five file checkboxes to include their current editor contents in the next AI request.
 3. Describe a focused task, such as “Fix the bug in app.js and show the complete corrected file.”
 4. Review the response. **Use in editor** replaces the selected file's entire contents with that code block. **Undo suggestion** restores the previous contents.
 5. Edit manually as needed, then use **Download file** or **Download project ZIP**. ZIP export preserves relative folder paths.
+
+Messages appear in their own scrollable window above the composer. Every generated code block includes a filename field and **Write project file**: enter a relative path to create a new file or replace an existing file after confirmation. Choose **Target project** in Project files to put new files in that imported project; **All open projects** uses the full path you enter. Existing replacements support **Undo suggestion**.
+
+**Search files and folders** filters imported file paths without changing editor contents or AI context selection. Searches ignore case, accept folder paths, and match multiple space-separated terms. Click a folder result to show its files, or **Clear** to return to the full list. Search covers files opened in Atlas; it does not search your entire computer. Folder entries are derived from their imported files, so empty folders do not appear. **Maximize workspace** hides the sidebar and extra header controls; **Exit maximized view** restores them.
+
+Use **Save file to disk** to choose a destination in any project on your computer and write the current editor contents there. Chrome and Edge on localhost or HTTPS support this file picker. Other browsers can use **Download file** or **Download project ZIP**. Generated files are saved in Atlas first; disk writes happen when you choose a destination.
 
 HTML, CSS, JavaScript, TypeScript, Python, Java, C/C++, Rust, Go, Markdown, JSON, YAML, XML, SVG, configuration files, extensionless files, and other UTF-8 or BOM-marked UTF-16 text are supported. Files are detected as text rather than relying on a fixed extension list. Binary files such as images, PDFs, Office documents, archives, audio, and executables are rejected with a visible explanation.
 
@@ -34,7 +44,7 @@ Coding mode focuses on code and excludes unrelated reference retrieval. General 
 
 The small local models have a 4,096-token context. Atlas conservatively budgets input and visibly reports when it omits earlier messages, reference text, or file excerpts. It cannot fully review a large project in a single request. Start with short, specific tasks; try the balanced or larger Coder model if your GPU has enough memory.
 
-Atlas suggests code and lets you apply it to its browser editor. It does not autonomously edit disk files, run terminals or tests, browse the live web, connect to GitHub, or perform Codex-style repository automation. Review and test generated code yourself.
+Atlas suggests code and lets you create project files, apply code to its browser editor, and save files to a disk location you choose. It does not autonomously edit disk files, run terminals or tests, browse the live web, connect to GitHub, or perform Codex-style repository automation. Review and test generated code yourself.
 
 ## Development and checks
 

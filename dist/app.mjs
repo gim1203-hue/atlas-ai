@@ -4,16 +4,23 @@ import {initFileWorkspace, readTextFile} from './files.mjs';
 
 const $ = id => document.getElementById(id);
 let state, engine = null, worker = null, busy = false, loading = false, stopped = false, files = [], readingFiles = false, loadEpoch = 0;
-let cancelPendingLoad = null; let generationEpoch = 0;
+let cancelPendingLoad = null; let generationEpoch = 0; let cancelGeneration = null; let draftTimer;
 const current = () => state.chats.find(chat => chat.id === state.active);
 const notice = text => { $('chat-status').textContent = text; };
 let projectFiles = [];
 const fileWorkspace = initFileWorkspace({notice,onAttach:value => {projectFiles = value;}});
 $('project-nav').onclick = () => {view('chat'); $('project-workspace').open = true; $('project-workspace').scrollIntoView({block:'start',behavior:'smooth'});};
 $('toggle-files').onclick = () => {$('project-workspace').open = !$('project-workspace').open;};
+$('maximize-workspace').onclick = () => {
+  const expanded=document.body.classList.toggle('workspace-expanded');
+  $('maximize-workspace').textContent=expanded ? 'Exit maximized view' : 'Maximize workspace';
+  $('maximize-workspace').setAttribute('aria-pressed',String(expanded));
+};
 try { state = restoreWorkspace(localStorage.getItem(STORAGE_KEY), validateNotes, initialNotes); }
 catch { state = newWorkspace(initialNotes); notice('Saved data could not be read. Starting a fresh session. Original saved data is retained until your next change.'); }
 function save() {
+  clearTimeout(draftTimer);
+  current().draft = $('question').value;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); $('save-status').textContent = 'Saved in this browser. Export a backup to keep a separate copy.'; }
   catch { $('save-status').textContent = 'Browser storage is unavailable or full. Export your library and conversations before closing this tab.'; }
 }
@@ -44,7 +51,13 @@ function renderBody(body, text) {
     file.onclick = () => download('atlas-code.'+(extensions[part.language.toLowerCase()] || 'txt'), part.text,'text/plain');
     const apply = document.createElement('button'); apply.type = 'button'; apply.textContent = 'Use in editor'; apply.onclick = () => fileWorkspace.applyCode(part.text,part.language);
     toolbar.append(language,button,file,apply); const pre = document.createElement('pre'); const code = document.createElement('code'); code.textContent = part.text;
-    pre.append(code); block.append(toolbar,pre); body.append(block);
+    const saveForm = document.createElement('form'); saveForm.className = 'code-save-form';
+    const path = document.createElement('input'); path.placeholder = 'src/app.js or index.html'; path.required = true; path.maxLength = 200; path.setAttribute('aria-label','Save code as project file');
+    path.value = 'atlas-code.'+(extensions[part.language.toLowerCase()] || 'txt');
+    const write = document.createElement('button'); write.type = 'submit'; write.textContent = 'Write project file';
+    saveForm.onsubmit = event => {event.preventDefault(); fileWorkspace.writeCode(path.value,part.text);};
+    saveForm.append(path,write);
+    pre.append(code); block.append(toolbar,pre,saveForm); body.append(block);
   }
 }
 function sourceList(box,sources) {
@@ -62,14 +75,17 @@ function message(role,text,metadata = {}) {
   const body = document.createElement('div'); renderBody(body,text); box.append(label,body);
   if (metadata.files?.length) {const caption = document.createElement('small'); caption.textContent = 'Attached: '+metadata.files.join(', '); box.append(caption);}
   if (metadata.stopped) {const caption = document.createElement('small'); caption.textContent = 'Generation stopped. Response may be incomplete.'; box.append(caption);}
-  sourceList(box,metadata.sources); $('messages').append(box); $('suggestions').hidden = true; return {box,body};
+  sourceList(box,metadata.sources); $('messages').append(box); $('suggestions').hidden = true;
+  document.querySelector('.chat-pane-title').hidden = true;
+  $('messages').scrollTop = $('messages').scrollHeight;
+  return {box,body};
 }
 function renderChats() {
   $('conversations').replaceChildren();
   for (const chat of state.chats) {
     const b = document.createElement('button'); b.className = 'conversation'+(chat.id === state.active ? ' selected' : ''); b.textContent = chat.title;
     b.disabled = busy; b.setAttribute('aria-pressed',String(chat.id === state.active));
-    b.onclick = () => {state.active = chat.id; files = []; renderFiles(); renderMessages(); renderChats(); save(); notice(''); view('chat');};
+    b.onclick = () => {save(); state.active = chat.id; $('question').value = chat.draft || ''; files = []; renderFiles(); renderMessages(); renderChats(); save(); updateControls(); notice(''); view('chat');};
     const row = document.createElement('div'); row.className = 'conversation-row';
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'delete-conversation'; remove.textContent = '×'; remove.setAttribute('aria-label','Delete conversation '+chat.title); remove.disabled = busy;
     remove.onclick = () => deleteConversation(chat.id);
@@ -78,6 +94,7 @@ function renderChats() {
 }
 function renderMessages() {
   $('messages').replaceChildren(); $('suggestions').hidden = current().messages.length > 0;
+  document.querySelector('.chat-pane-title').hidden = current().messages.length > 0;
   for (const m of current().messages) message(m.role,m.content,m);
 }
 function renderNotes() {
@@ -111,7 +128,8 @@ function deleteConversation(id) {
   state.chats = state.chats.filter(chat => chat.id !== id);
   if (!state.chats.length) state.chats.push(conversation());
   if (!state.chats.some(chat=>chat.id === state.active)) state.active = state.chats[0].id;
-  renderChats(); renderMessages(); save(); notice('Conversation deleted.');
+  $('question').value = current().draft || '';
+  renderChats(); renderMessages(); save(); updateControls(); notice('Conversation deleted.');
 }
 $('delete-chat').onclick = () => deleteConversation(state.active);
 $('import-chat').onchange = async event => {
@@ -122,7 +140,7 @@ $('import-chat').onchange = async event => {
     const value = JSON.parse(await file.text()); if (value.version !== 1) throw Error('Unsupported conversation format.');
     const chat = {...conversation(),title:value.title,messages:value.messages};
     const restored = restoreWorkspace(JSON.stringify({...state,chats:[chat],active:chat.id}),validateNotes,initialNotes);
-    state.chats.unshift(restored.chats[0]); state.active = chat.id; renderChats(); renderMessages(); save(); notice('Conversation imported.'); view('chat');
+    save(); state.chats.unshift(restored.chats[0]); state.active = chat.id; $('question').value = current().draft || ''; renderChats(); renderMessages(); save(); updateControls(); notice('Conversation imported.'); view('chat');
   } catch (error) {notice('Import failed: '+error.message);} finally {event.target.value = '';}
 };
 $('import').onchange = async e => {
@@ -155,17 +173,29 @@ $('code-files').onchange = async e => {
   } catch (err) {notice(err.message);} finally {e.target.value = ''; readingFiles = false; updateControls();}
 };
 function updateControls() {
-  $('send').disabled = !engine || busy || loading || readingFiles;
+  $('send').disabled = !$('question').value.trim() || busy || loading || readingFiles;
+  $('send').textContent = engine ? 'Send' : 'Start AI & send';
+  $('question').disabled = loading;
   $('load').disabled = busy || loading; $('model').disabled = busy || loading;
-  $('stop').hidden = !busy; $('stop').disabled = stopped; $('cancel-load').hidden = !loading; $('new-chat').disabled = busy || readingFiles;
+  $('stop').hidden = !busy; $('stop').disabled = stopped; $('cancel-load').hidden = !loading; $('new-chat').disabled = busy || loading || readingFiles;
   $('mode').disabled = busy; $('library-only').disabled = busy; $('code-files').disabled = busy || readingFiles;
   $('attach-label').classList.toggle('disabled',busy || readingFiles);
+  $('attach-folder').disabled = busy || loading || readingFiles;
+  $('attach-folder-label').classList.toggle('disabled',busy || loading || readingFiles);
   $('export-chat').disabled = busy; $('unload').hidden = !engine; $('unload').disabled = busy || loading;
-  $('delete-chat').disabled = busy; $('import-chat').disabled = busy;
-  document.querySelectorAll('.conversation').forEach(b => b.disabled = busy || readingFiles);
-  document.querySelectorAll('.delete-conversation').forEach(b => b.disabled = busy);
+  $('delete-chat').disabled = busy || loading; $('import-chat').disabled = busy || loading;
+  document.querySelectorAll('.conversation').forEach(b => b.disabled = busy || loading || readingFiles);
+  document.querySelectorAll('.delete-conversation').forEach(b => b.disabled = busy || loading);
+  document.querySelectorAll('[data-question]').forEach(b => b.disabled = busy || loading);
   $('attached-files').querySelectorAll('button').forEach(b => b.disabled = busy);
 }
+$('attach-folder').onchange = async event => {
+  if (busy || loading || readingFiles) return;
+  readingFiles=true; updateControls();
+  try {await fileWorkspace.ready; await fileWorkspace.importFiles(event); notice('Folder added to Project files. Select up to five files for the next AI request.');}
+  catch (error) {notice('Could not add folder: '+error.message);}
+  finally {event.target.value=''; readingFiles=false; updateControls();}
+};
 function disposeEngine() {
   loadEpoch++; cancelPendingLoad?.(); cancelPendingLoad = null; worker?.terminate(); worker = null; engine = null; loading = false; $('progress').hidden = true; $('load').textContent = 'Start free AI'; updateControls();
 }
@@ -185,6 +215,12 @@ $('load').onclick = async () => {
     $('status').textContent = 'Preparing your AI. First use downloads model files; keep this tab open.'; $('progress').hidden = false; $('progress').value = 0;
     const webllm = await import('./vendor/webllm.mjs'); if (epoch !== loadEpoch) return;
     worker = new Worker(new URL('./worker.mjs',import.meta.url),{type:'module'});
+    const watchedWorker = worker;
+    worker.addEventListener('error',event => {
+      if (worker !== watchedWorker || loading || busy) return;
+      disposeEngine(); $('status').textContent = 'AI stopped unexpectedly. Send your question to restart it.';
+      notice(event.message || 'The AI worker stopped. Your saved work is retained.');
+    });
     const pending = webllm.CreateWebWorkerMLCEngine(worker,$('model').value,{initProgressCallback:r => {
       if (epoch !== loadEpoch) return; $('status').textContent = r.text; $('progress').value = r.progress;
     }},{context_window_size:4096});
@@ -213,17 +249,22 @@ async function ask(question) {
   const user = {role:'user',content:question.trim(),files:contextFiles.map(f => f.name)}; chat.messages.push(user); message(user.role,user.content,user);
   if (chat.title === 'New conversation') chat.title = question.trim().slice(0,55);
   $('question').value = ''; const answer = {role:'assistant',content:''}; const result = message('assistant','Thinking…'); chat.messages.push(answer); save(); renderChats();
-  if (strict && !sources.length) {answer.content = 'I could not find relevant passages in your library. Add reference text or turn off “Answer only from my library.”'; renderBody(result.body,answer.content); save(); return;}
+  if (strict && !sources.length) {answer.content = 'I could not find relevant passages in your library. Add reference text or turn off “Answer only from my library.”'; renderBody(result.body,answer.content); save(); updateControls(); return;}
   busy = true; stopped = false; updateControls(); notice(request.warnings.join(' '));
   let finishReason;
-  const generation = ++generationEpoch; const activeWorker = worker; let timer; let errorListener;
+  const generation = ++generationEpoch; const activeWorker = worker; let timer; let errorListener; let lastPaint = 0;
   try {
     const run = async () => {
       const stream = await engine.chat.completions.create({messages:request.messages,stream:true,max_tokens:900,temperature:0.2});
       for await (const chunk of stream) {
         if (stopped || generation !== generationEpoch) break;
         answer.content += chunk.choices[0]?.delta?.content || ''; finishReason = chunk.choices[0]?.finish_reason || finishReason;
-        result.body.textContent = answer.content || 'Thinking…';
+        if (performance.now()-lastPaint >= 75) {
+          const log = $('messages'); const follow = log.scrollHeight-log.scrollTop-log.clientHeight < 120;
+          result.body.textContent = answer.content || 'Thinking…';
+          if (follow) log.scrollTop = log.scrollHeight;
+          lastPaint = performance.now();
+        }
       }
     };
     const failure = new Promise((_,reject) => {
@@ -231,7 +272,8 @@ async function ask(question) {
       activeWorker.addEventListener('error',errorListener,{once:true});
       timer = setTimeout(() => {disposeEngine(); reject(Error('Generation timed out. Restart the AI with a shorter question or smaller model.'));},180000);
     });
-    await Promise.race([run(),failure]);
+    const cancelled = new Promise(resolve => {cancelGeneration = resolve;});
+    await Promise.race([run(),failure,cancelled]);
     if (stopped) {answer.stopped = true; answer.content ||= 'Generation stopped before a response was produced.';}
     else if (!answer.content.trim()) throw Error('The model returned an empty response. Try a shorter question.');
     renderBody(result.body,answer.content); answer.sources = sources; sourceList(result.box,sources);
@@ -242,19 +284,40 @@ async function ask(question) {
   } catch (err) {
     answer.failed = true; answer.content = (answer.content ? answer.content+'\n\n' : '')+'The AI could not finish: '+err.message+' Try a shorter question, unload the AI, or choose the lightweight model.';
     renderBody(result.body,answer.content); notice('Generation failed. Your question is saved; you can retry.');
-  } finally {generationEpoch++; clearTimeout(timer); activeWorker.removeEventListener('error',errorListener); busy = false; save(); updateControls(); renderChats();}
+  } finally {cancelGeneration = null; generationEpoch++; clearTimeout(timer); activeWorker.removeEventListener('error',errorListener); busy = false; save(); updateControls(); renderChats();}
 }
-$('chat-form').onsubmit = e => {e.preventDefault(); ask($('question').value).catch(err => notice(err.message));};
+$('chat-form').onsubmit = async e => {
+  e.preventDefault();
+  if (busy || loading || readingFiles) return;
+  const question = $('question').value;
+  if (!question.trim()) {notice('Enter a question before sending.'); return;}
+  try {
+    if (!engine) {
+      $('ai-settings').open = true;
+      notice('Starting your local AI. Your question stays here until the model is ready.');
+      await $('load').onclick();
+      if (!engine) {notice($('status').textContent); return;}
+    }
+    await ask(question);
+  } catch (err) {notice(err.message);}
+};
+$('question').oninput = () => {updateControls(); clearTimeout(draftTimer); draftTimer = setTimeout(save,300);};
 $('question').onkeydown = e => {if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {e.preventDefault(); if (!$('send').disabled) $('chat-form').requestSubmit();}};
-document.querySelectorAll('[data-question]').forEach(b => b.onclick = () => {$('question').value = b.dataset.question; $('question').focus();});
-$('stop').onclick = () => {stopped = true; engine?.interruptGenerate(); $('stop').disabled = true; notice('Stopping generation…');};
+document.querySelectorAll('[data-question]').forEach(b => b.onclick = () => {$('question').value = b.dataset.question; updateControls(); $('question').focus();});
+$('stop').onclick = () => {
+  if (!busy) return;
+  stopped = true; generationEpoch++; disposeEngine(); cancelGeneration?.();
+  notice('Generation stopped. Send another question to restart the AI.');
+};
 $('new-chat').onclick = () => {
   if (state.chats.length >= 30) {notice('You have 30 saved conversations. Export a backup and reuse an existing conversation.'); view('chat'); return;}
-  const chat = conversation(); state.chats.unshift(chat); state.active = chat.id; files = []; $('question').value = '';
-  renderChats(); renderMessages(); renderFiles(); save(); notice(''); view('chat');
+  save(); const chat = conversation(); state.chats.unshift(chat); state.active = chat.id; files = []; $('question').value = '';
+  renderChats(); renderMessages(); renderFiles(); save(); updateControls(); notice(''); view('chat');
 };
 for (const chat of state.chats) for (const m of chat.messages) if (m.role === 'assistant' && !m.content) {m.content = 'The previous response was interrupted by a reload.'; m.failed = true;}
+$('question').value = current().draft || '';
 renderChats(); renderMessages(); renderNotes(); updateControls();
+document.addEventListener('visibilitychange',() => {if (document.visibilityState === 'hidden') save();});
 window.addEventListener('pagehide',() => {if (busy) current().messages.at(-1).stopped = true; save(); worker?.terminate();});
 
 if (document.modelContext?.registerTool) {

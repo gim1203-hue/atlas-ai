@@ -42,6 +42,7 @@
         </div>
       </div></details>
       <div class="chat-tools"><button id="toggle-files" class="outline" type="button">Files</button>
+        <button id="maximize-workspace" class="outline" type="button" aria-pressed="false">Maximize workspace</button>
         <label for="mode">Assistant mode</label><select id="mode"><option value="code">Coding assistant</option><option value="chat">General chat + references</option></select>
         <button id="export-chat" class="outline" type="button">Export conversation</button>
         <label class="outline file-label" for="import-chat">Import conversation<input id="import-chat" type="file" accept="application/json,.json" hidden></label>
@@ -50,11 +51,11 @@
       <div class="coding-window">
       <details id="project-workspace" class="project-workspace">
         <summary>Project files <span id="project-count">0 files</span></summary>
-        <p>Open any text-based file: HTML, CSS, JS, Python, JSON, Markdown, configuration files, and more. Select up to five files as AI context. Files are saved in this browser. Up to 1,000 files, 4 MB per text file, and 100 MB total workspace.</p>
+        <details class="project-help"><summary>File types and storage limits</summary><p>Open text-based files in any language. Select up to five files as AI context. Up to 1,000 files, 4 MB per text file, and 100 MB total workspace. Export a ZIP backup before clearing browser data.</p></details>
         <div class="actions">
-          <label class="outline file-label" for="open-files">Open files<input id="open-files" type="file" multiple hidden></label>
-          <label class="outline file-label" for="open-folder">Open folder<input id="open-folder" type="file" webkitdirectory multiple hidden></label>
-          <label class="sr-only" for="project-target">Project to delete</label><select id="project-target"><option value="all">All open projects</option></select>
+          <label class="outline file-label" for="open-files">Add files<input id="open-files" type="file" multiple hidden></label>
+          <label class="outline file-label" for="open-folder">Add folder<input id="open-folder" type="file" webkitdirectory multiple hidden></label>
+          <label class="sr-only" for="project-target">Target project</label><select id="project-target"><option value="all">All open projects</option></select>
           <button id="delete-project" class="outline" type="button" disabled>Delete project</button>
           <button id="restore-project" class="outline" type="button" hidden>Undo delete</button>
           <button id="download-project" class="outline" type="button" disabled>Download project ZIP</button>
@@ -63,30 +64,34 @@
           <label class="sr-only" for="new-filename">New filename</label><input id="new-filename" placeholder="src/app.js or index.html" maxlength="200" required>
           <button class="primary">Create file</button>
         </form>
+        <div class="file-search"><label class="sr-only" for="file-search">Search files and folders</label><input id="file-search" type="search" placeholder="Search files and folders…"><button id="clear-file-search" class="outline" type="button">Clear</button><span id="search-count" role="status"></span></div>
         <div class="project-editor">
           <div id="project-list" aria-label="Project file list"></div>
           <div class="editor-pane">
             <div class="editor-heading"><strong id="editing-file">Choose a file or create one</strong><span id="file-size"></span></div>
             <label class="sr-only" for="file-editor">File contents</label><textarea id="file-editor" rows="12" maxlength="2000000" spellcheck="false" disabled placeholder="Open or create a file to edit its contents."></textarea>
-            <div class="actions"><button id="download-file" class="outline" type="button" disabled>Download file</button><button id="delete-file" class="outline" type="button" disabled>Delete file</button><button id="undo-edit" class="outline" type="button" disabled>Undo suggestion</button></div>
+            <div class="actions"><button id="save-disk" class="outline" type="button" disabled>Save file to disk</button><button id="download-file" class="outline" type="button" disabled>Download file</button><button id="delete-file" class="outline" type="button" disabled>Delete file</button><button id="undo-edit" class="outline" type="button" disabled>Undo suggestion</button></div>
           </div>
         </div>
         <p id="project-storage-status" class="feedback" role="status">Project storage: 100 MB workspace limit.</p>
         <p id="project-status" class="feedback" role="status">Edit files here and ask the chat beside them for help. ZIP archives and images cannot be edited as source text.</p>
       </details>
-      <section class="chat-pane" aria-label="Project chat"><h2 class="chat-pane-title">What can I help you build?</h2>
+      <section class="chat-pane" aria-label="Project chat">
+      <section class="message-window" aria-label="Message window"><div class="message-window-heading">Messages</div><h2 class="chat-pane-title">What can I help you build?</h2>
       <div id="messages" role="log" aria-label="Conversation" aria-live="polite"></div>
       <div id="suggestions">
         <button type="button" data-question="Write a JavaScript function that removes duplicates from an array. Show the code and a small test.">Build something<span>Write a function with a test</span></button>
         <button type="button" data-question="Review the attached code. Identify a bug, explain the cause, and show a corrected version.">Fix a bug<span>Attach a file and review it</span></button>
         <button type="button" data-question="Explain the attached code step by step and suggest one improvement.">Understand your code<span>Walk through a small file</span></button>
       </div>
+      </section>
       <form id="chat-form">
         <label class="sr-only" for="question">Your question</label>
         <textarea id="question" placeholder="Describe a task, paste an error, or ask about attached code…" rows="3" maxlength="3000"></textarea>
         <div id="attached-files" aria-label="Attached code files"></div>
         <div class="composer-bottom">
           <label id="attach-label" class="outline file-label" for="code-files">Attach text<input id="code-files" type="file" multiple hidden></label>
+          <label id="attach-folder-label" class="outline file-label" for="attach-folder">Add folder<input id="attach-folder" type="file" webkitdirectory multiple hidden></label>
           <label><input id="library-only" type="checkbox"> Answer only from my library</label>
           <button id="send" class="primary" disabled>Send</button><button id="stop" class="outline" type="button" hidden>Stop</button>
         </div>
