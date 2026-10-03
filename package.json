@@ -1,0 +1,19 @@
+{
+  "name": "atlas-ai",
+  "version": "1.1.0",
+  "private": true,
+  "description": "A free browser AI coding and reference workspace",
+  "scripts": {
+    "start": "node server.cjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "0.2.79",
+    "fflate": "0.8.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "jsdom": "26.1.0"
+  }
+}
