@@ -19,12 +19,12 @@
     <button id="project-nav" class="nav" type="button">⌘ Project files</button>
     <div class="section-label">CONVERSATIONS</div>
     <div id="conversations" aria-label="Saved conversations"></div>
-    <div class="side-bottom"><span class="pill">No paid AI API</span><p>Your questions and attached code are processed on this device.</p><small>Chats and notes are saved in this browser. Attachments stay in this tab. Export backups before clearing browser data.</small></div>
+    <div class="side-bottom"><span class="pill">No paid AI API</span><p>Your questions and attached code are processed on this device.</p><small>Chats and notes are saved in this browser. Project files are saved in browser storage. Export backups before clearing browser data.</small></div>
   </aside>
   <main>
-    <header><div><span class="eyebrow">YOUR SPACE TO BUILD</span><h1 id="page-title">Ask Atlas</h1></div><span class="header-badge">Local browser AI</span></header>
+    <header><div><h1 id="page-title">Atlas</h1></div><span class="header-badge">Local browser AI</span></header>
     <section id="chat-view">
-      <div class="setup">
+      <details id="ai-settings" class="setup" open><summary>Free AI settings</summary><div class="setup-content">
         <div><h2>A coding partner, on your device.</h2><p>Write a function, understand a file, debug an error, or ask a question. Start with a short, specific task.</p><p class="setup-note">Atlas suggests code for you to review. Use the balanced Coder model for more demanding tasks if your hardware supports it. The lightweight model can struggle with even simple fixes. Atlas cannot run commands or access a repository.</p></div>
         <div class="engine-controls">
           <label for="model">AI model</label>
@@ -40,19 +40,23 @@
           <p id="status" role="status">First use downloads a model from Hugging Face. Chrome or Edge with WebGPU and compatible graphics hardware is required. Larger models need more memory and download time.</p>
           <progress id="progress" max="1" value="0" hidden aria-label="AI loading progress"></progress>
         </div>
-      </div>
-      <div class="chat-tools">
+      </div></details>
+      <div class="chat-tools"><button id="toggle-files" class="outline" type="button">Files</button>
         <label for="mode">Assistant mode</label><select id="mode"><option value="code">Coding assistant</option><option value="chat">General chat + references</option></select>
         <button id="export-chat" class="outline" type="button">Export conversation</button>
         <label class="outline file-label" for="import-chat">Import conversation<input id="import-chat" type="file" accept="application/json,.json" hidden></label>
         <button id="delete-chat" class="outline" type="button">Delete conversation</button>
       </div>
-      <details id="project-workspace" class="project-workspace" open>
+      <div class="coding-window">
+      <details id="project-workspace" class="project-workspace">
         <summary>Project files <span id="project-count">0 files</span></summary>
-        <p>Open any text-based file: HTML, CSS, JS, Python, JSON, Markdown, configuration files, and more. Select up to five files as AI context. File contents remain in this tab until you download them.</p>
+        <p>Open any text-based file: HTML, CSS, JS, Python, JSON, Markdown, configuration files, and more. Select up to five files as AI context. Files are saved in this browser. Up to 1,000 files, 4 MB per text file, and 100 MB total workspace.</p>
         <div class="actions">
           <label class="outline file-label" for="open-files">Open files<input id="open-files" type="file" multiple hidden></label>
           <label class="outline file-label" for="open-folder">Open folder<input id="open-folder" type="file" webkitdirectory multiple hidden></label>
+          <label class="sr-only" for="project-target">Project to delete</label><select id="project-target"><option value="all">All open projects</option></select>
+          <button id="delete-project" class="outline" type="button" disabled>Delete project</button>
+          <button id="restore-project" class="outline" type="button" hidden>Undo delete</button>
           <button id="download-project" class="outline" type="button" disabled>Download project ZIP</button>
         </div>
         <form id="create-file" class="create-file">
@@ -63,12 +67,14 @@
           <div id="project-list" aria-label="Project file list"></div>
           <div class="editor-pane">
             <div class="editor-heading"><strong id="editing-file">Choose a file or create one</strong><span id="file-size"></span></div>
-            <label class="sr-only" for="file-editor">File contents</label><textarea id="file-editor" rows="12" maxlength="30000" spellcheck="false" disabled placeholder="Open or create a file to edit its contents."></textarea>
-            <div class="actions"><button id="download-file" class="outline" type="button" disabled>Download file</button><button id="undo-edit" class="outline" type="button" disabled>Undo suggestion</button></div>
+            <label class="sr-only" for="file-editor">File contents</label><textarea id="file-editor" rows="12" maxlength="2000000" spellcheck="false" disabled placeholder="Open or create a file to edit its contents."></textarea>
+            <div class="actions"><button id="download-file" class="outline" type="button" disabled>Download file</button><button id="delete-file" class="outline" type="button" disabled>Delete file</button><button id="undo-edit" class="outline" type="button" disabled>Undo suggestion</button></div>
           </div>
         </div>
-        <p id="project-status" class="feedback" role="status">Files are edited locally in this tab. Download the ZIP to retain the whole project. Binary files need a dedicated reader.</p>
+        <p id="project-storage-status" class="feedback" role="status">Project storage: 100 MB workspace limit.</p>
+        <p id="project-status" class="feedback" role="status">Edit files here and ask the chat beside them for help. ZIP archives and images cannot be edited as source text.</p>
       </details>
+      <section class="chat-pane" aria-label="Project chat"><h2 class="chat-pane-title">What can I help you build?</h2>
       <div id="messages" role="log" aria-label="Conversation" aria-live="polite"></div>
       <div id="suggestions">
         <button type="button" data-question="Write a JavaScript function that removes duplicates from an array. Show the code and a small test.">Build something<span>Write a function with a test</span></button>
@@ -87,6 +93,8 @@
       </form>
       <p id="chat-status" class="feedback" role="status"></p>
       <p class="footnote">Small local models have limited context and can make mistakes. Review and test generated code. Atlas does not search the live web. Enter sends; Shift+Enter adds a new line.</p>
+      </section>
+      </div>
     </section>
     <section id="library-view" hidden>
       <div class="library-heading"><div><h2>Your reference library</h2><p>Add notes or source text for Atlas to use. Notes are saved in this browser.</p></div>

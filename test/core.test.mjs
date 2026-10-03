@@ -49,7 +49,7 @@ test('text file imports accept varied extensions and UTF-16, reject binaries',as
   await assert.rejects(readTextFile(new File([new Uint8Array([0,1,2])],'unknown.bin')));
   await assert.rejects(readTextFile(new File(['not really PDF'],'test.pdf')));
   await assert.rejects(readTextFile(new File([new Uint8Array([255,255])],'invalid.txt')));
-  await assert.rejects(readTextFile(new File(['x'.repeat(30001)],'large.js')));
+  await assert.rejects(readTextFile(new File(['x'.repeat(2000001)],'large.js')));
 });
 test('relative project paths reject traversal and ZIP exports preserve contents',()=>{
   for (const name of ['../secret','/absolute','a/../b','C:\\file.js','a//b','con.txt']) assert.throws(()=>safePath(name));

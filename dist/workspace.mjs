@@ -1,4 +1,5 @@
 export const STORAGE_KEY = 'atlas-workspace-v1';
+import {FILE_CHAR_LIMIT} from './project-storage.mjs';
 export const MODEL_IDS = [
   'Qwen2.5-Coder-0.5B-Instruct-q4f32_1-MLC',
   'Qwen2.5-Coder-1.5B-Instruct-q4f32_1-MLC',
@@ -36,7 +37,7 @@ export function restoreWorkspace(raw, validateNotes, defaults) {
   return state;
 }
 export function validateFile(name, text) {
-  if (typeof name !== 'string' || name.length > 200 || typeof text !== 'string' || text.length > 30000 || text.includes('\0')) throw Error('Use a text or code file of up to 30,000 characters.');
+  if (typeof name !== 'string' || name.length > 200 || typeof text !== 'string' || text.length > FILE_CHAR_LIMIT || text.includes('\0')) throw Error('Use a text or code file of up to 2,000,000 characters.');
   return {name, text};
 }
 export function splitCode(text) {

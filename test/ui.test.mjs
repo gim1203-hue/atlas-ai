@@ -9,6 +9,7 @@ test('file editor creates, edits, applies and undoes AI suggestions safely',asyn
   const dom = new JSDOM(html,{url:'http://localhost/'}); globalThis.document = dom.window.document; globalThis.window = dom.window;
   let context = []; let feedback = '';
   const workspace = initFileWorkspace({notice:message=>{feedback=message;},onAttach:files=>{context=files;}});
+  await workspace.ready;
   const $ = id=>document.getElementById(id);
   $('new-filename').value = 'index.html'; $('create-file').dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
   assert.equal($('editing-file').textContent,'index.html'); assert.equal($('file-editor').disabled,false);
@@ -21,6 +22,12 @@ test('file editor creates, edits, applies and undoes AI suggestions safely',asyn
   for (let i=0;i<5;i++) {$('new-filename').value = 'file'+i+'.js'; $('create-file').dispatchEvent(new dom.window.Event('submit',{cancelable:true}));}
   assert.equal(context.length,5); const checkboxes = [...document.querySelectorAll('#project-list input')];
   checkboxes[5].checked = true; checkboxes[5].dispatchEvent(new dom.window.Event('change')); assert.equal(checkboxes[5].checked,false); assert.match(feedback,/five files/);
+  dom.window.confirm = ()=>true;
+  $('delete-file').click(); assert.equal(document.querySelectorAll('.project-row').length,5);
+  $('restore-project').click(); assert.equal(document.querySelectorAll('.project-row').length,6);
+  $('delete-project').click(); assert.equal(document.querySelectorAll('.project-row').length,0);
+  $('restore-project').click(); assert.equal(document.querySelectorAll('.project-row').length,6);
+  await workspace.flush();
   dom.window.close();
 });
 

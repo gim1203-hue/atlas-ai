@@ -24,9 +24,9 @@ Open the URL printed in the terminal. Keep the server running. You can also host
 
 HTML, CSS, JavaScript, TypeScript, Python, Java, C/C++, Rust, Go, Markdown, JSON, YAML, XML, SVG, configuration files, extensionless files, and other UTF-8 or BOM-marked UTF-16 text are supported. Files are detected as text rather than relying on a fixed extension list. Binary files such as images, PDFs, Office documents, archives, audio, and executables are rejected with a visible explanation.
 
-Limits: 100 project files, 30,000 characters / 120 KB per file, 2 million total imported characters, and five selected project files as AI context. Dependency folders such as `node_modules`, `.git`, and `.venv` are skipped when opening folders.
+Limits: 1,000 project files, 2,000,000 characters / 4 MB per text file, 100 MB per workspace, and five selected project files as AI context. Dependency folders such as `node_modules`, `.git`, and `.venv` are skipped when opening folders.
 
-Project files remain in the current tab. Download them before closing or refreshing. Opening a file does not overwrite the original file on disk. Chats and notes are saved in this browser, with visible warnings if storage is unavailable or full. Conversations and reference libraries can be exported and imported as JSON backups; library imports skip identical notes. Saved conversations are limited to 30, with 80 messages each. Export and delete old conversations to make room.
+Project files auto-save to IndexedDB in this browser and restore on refresh. Storage capacity depends on available browser quota and disk space. Download ZIP backups for safekeeping. Opening a file does not overwrite the original file on disk. Chats and notes are saved in this browser, with visible warnings if storage is unavailable or full. Conversations and reference libraries can be exported and imported as JSON backups; library imports skip identical notes. Saved conversations are limited to 30, with 80 messages each. Export and delete old conversations to make room.
 
 ## AI behavior
 
@@ -49,3 +49,7 @@ npm test
 Tests cover reference validation and retrieval, persisted conversation validation, prompt budgets, text and UTF-16 file import, invalid paths and binary files, ZIP round trips, editor edits and AI suggestion undo, UI storage and error states, HTTP serving, HEAD requests, and path traversal.
 
 The lightweight Qwen Coder model loaded and streamed responses on this computer in Edge, and Stop returned the UI to a usable state. It gave an incorrect answer to a simple file-fix test, so model output must not be treated as verified code. The balanced model downloaded, but browser control disconnected during initialization; its readiness and generation were not confirmed. Other model sizes and devices require their own hardware verification. See `THIRD_PARTY_NOTICES.md` for dependency information.
+
+## Unified interface and deletion
+
+Atlas uses a ChatGPT-style interface with centered chat and a bottom composer. Files opens the editor beside chat on large screens; AI settings, reference notes, and conversation controls stay in the same browser window. Delete a conversation with the ? beside its title. Delete file removes the selected file from Atlas. Choose a project folder and use Delete project to remove its imported files. Original files on disk are unchanged; Undo delete restores the last removed set while the tab remains open.

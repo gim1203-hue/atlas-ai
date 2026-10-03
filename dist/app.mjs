@@ -10,6 +10,7 @@ const notice = text => { $('chat-status').textContent = text; };
 let projectFiles = [];
 const fileWorkspace = initFileWorkspace({notice,onAttach:value => {projectFiles = value;}});
 $('project-nav').onclick = () => {view('chat'); $('project-workspace').open = true; $('project-workspace').scrollIntoView({block:'start',behavior:'smooth'});};
+$('toggle-files').onclick = () => {$('project-workspace').open = !$('project-workspace').open;};
 try { state = restoreWorkspace(localStorage.getItem(STORAGE_KEY), validateNotes, initialNotes); }
 catch { state = newWorkspace(initialNotes); notice('Saved data could not be read. Starting a fresh session. Original saved data is retained until your next change.'); }
 function save() {
@@ -18,7 +19,7 @@ function save() {
 }
 function view(name) {
   $('chat-view').hidden = name !== 'chat'; $('library-view').hidden = name !== 'library';
-  $('page-title').textContent = name === 'chat' ? 'Ask Atlas' : 'Reference library';
+  $('page-title').textContent = name === 'chat' ? 'Atlas' : 'Reference library';
   document.querySelectorAll('.nav').forEach(b => b.classList.toggle('active', b.dataset.view === name));
 }
 document.querySelectorAll('.nav').forEach(b => b.onclick = () => view(b.dataset.view));
@@ -69,7 +70,10 @@ function renderChats() {
     const b = document.createElement('button'); b.className = 'conversation'+(chat.id === state.active ? ' selected' : ''); b.textContent = chat.title;
     b.disabled = busy; b.setAttribute('aria-pressed',String(chat.id === state.active));
     b.onclick = () => {state.active = chat.id; files = []; renderFiles(); renderMessages(); renderChats(); save(); notice(''); view('chat');};
-    $('conversations').append(b);
+    const row = document.createElement('div'); row.className = 'conversation-row';
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'delete-conversation'; remove.textContent = '×'; remove.setAttribute('aria-label','Delete conversation '+chat.title); remove.disabled = busy;
+    remove.onclick = () => deleteConversation(chat.id);
+    row.append(b,remove); $('conversations').append(row);
   }
 }
 function renderMessages() {
@@ -102,12 +106,14 @@ $('note-form').onsubmit = e => {
 };
 $('export').onclick = () => download('atlas-reference-library.json',state.notes);
 $('export-chat').onclick = () => download('atlas-conversation.json',{version:1,title:current().title,messages:current().messages});
-$('delete-chat').onclick = () => {
+function deleteConversation(id) {
   if (!window.confirm('Delete this saved conversation? Export it first if you want a backup.')) return;
-  state.chats = state.chats.filter(chat => chat.id !== state.active);
+  state.chats = state.chats.filter(chat => chat.id !== id);
   if (!state.chats.length) state.chats.push(conversation());
-  state.active = state.chats[0].id; renderChats(); renderMessages(); save(); notice('Conversation deleted.');
-};
+  if (!state.chats.some(chat=>chat.id === state.active)) state.active = state.chats[0].id;
+  renderChats(); renderMessages(); save(); notice('Conversation deleted.');
+}
+$('delete-chat').onclick = () => deleteConversation(state.active);
 $('import-chat').onchange = async event => {
   try {
     const file = event.target.files[0]; if (!file) return;
@@ -157,6 +163,7 @@ function updateControls() {
   $('export-chat').disabled = busy; $('unload').hidden = !engine; $('unload').disabled = busy || loading;
   $('delete-chat').disabled = busy; $('import-chat').disabled = busy;
   document.querySelectorAll('.conversation').forEach(b => b.disabled = busy || readingFiles);
+  document.querySelectorAll('.delete-conversation').forEach(b => b.disabled = busy);
   $('attached-files').querySelectorAll('button').forEach(b => b.disabled = busy);
 }
 function disposeEngine() {
@@ -192,6 +199,7 @@ $('load').onclick = async () => {
     try {const ready = await Promise.race([pending,failure]); if (epoch !== loadEpoch) return; engine = ready;}
     finally {clearTimeout(timer); pendingWorker.removeEventListener('error',errorListener); cancelPendingLoad = null;}
     $('status').textContent = 'Ready. AI runs on this device. Use focused questions and short code excerpts.'; $('load').textContent = 'Reload AI'; $('progress').hidden = true;
+    $('ai-settings').open = false;
   } catch (err) {if (epoch !== loadEpoch) return; disposeEngine(); $('status').textContent = 'Could not start AI: '+err.message;}
   finally {if (epoch === loadEpoch) {loading = false; updateControls();}}
 };
